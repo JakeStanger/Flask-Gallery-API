@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='Flask-Gallery-API',
     version='1.0.0',
-    packages=['flask-gallery-api'],
+    packages=['flask_gallery_api'],
     include_package_data=True,
     zip_safe=False,
     install_requires=['Flask',
