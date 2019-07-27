@@ -15,8 +15,10 @@ from werkzeug.utils import secure_filename, redirect
 from PIL import Image, ExifTags, ImageEnhance
 from datetime import datetime
 
-import database
-import json
+try:
+    from .database import *
+except ModuleNotFoundError:
+    from database import *
 import requests
 
 # with open('server_settings.json', 'r') as f:
@@ -34,7 +36,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-database.init(app)
+init(app)
 
 
 def to_fraction(num: float):
@@ -50,7 +52,7 @@ def get_friendly_name(filename: str) -> str:
     return filename.split('.')[0].replace('_', ' ').replace('-', ' ').title().strip()
 
 
-def get_current_user() -> database.User:
+def get_current_user() -> User:
     from flask_login import current_user
     return current_user
 
@@ -58,9 +60,9 @@ def get_current_user() -> database.User:
 @login_manager.user_loader
 def get_user(user_id):
     if re.match('^[0-9]$', user_id):
-        user = database.session().query(database.User).filter_by(id=user_id).first()
+        user = session().query(User).filter_by(id=user_id).first()
     else:
-        user = database.session().query(database.User).filter_by(username=user_id).first()
+        user = session().query(User).filter_by(username=user_id).first()
     return user
 
 
@@ -135,18 +137,18 @@ def images():
     if locations:
         locations = locations.split(',')
 
-    base_query = database.session().query(database.Image).order_by(database.Image.taken_time.desc())
+    base_query = session().query(Image).order_by(Image.taken_time.desc())
 
     if tags and len(tags) > 0:
-        base_query = base_query.filter(database.Image.tags.any(
-            database.Tag.name.in_(tags)))
+        base_query = base_query.filter(Image.tags.any(
+            Tag.name.in_(tags)))
 
     if locations and len(locations) > 0:
         base_query = base_query.filter(
-            database.Image.location.has(database.Location.name.in_(locations)))
+            Image.location.has(Location.name.in_(locations)))
 
     if query and len(query) > 0:
-        base_query = base_query.filter(database.Image.name.ilike('%' + query + '%'))
+        base_query = base_query.filter(Image.name.ilike('%' + query + '%'))
 
     images = base_query.all()
 
@@ -164,13 +166,13 @@ def images():
 
 @app.route('/tag', methods=['GET'])
 def tags():
-    tags = database.session().query(database.Tag).all()
+    tags = session().query(Tag).all()
     return jsonify(*map(lambda t: t.name, [*filter(lambda t: len(t.images) > 0, tags)]))
 
 
 @app.route('/location', methods=['GET'])
 def locations():
-    locations = database.session().query(database.Location).all()
+    locations = session().query(Location).all()
     return jsonify(*map(lambda l: l.name, locations))
 
 
@@ -178,7 +180,7 @@ def locations():
 def image(filename: str):
     print(filename)
     try:
-        im = database.session().query(database.Image).filter_by(filename=filename.strip()).one()
+        im = session().query(Image).filter_by(filename=filename.strip()).one()
         return jsonify({
             "name": im.name,
             "description": im.description,
@@ -202,7 +204,7 @@ def image(filename: str):
 @app.route('/image/<string:filename>/<full>', methods=['GET'])
 def image_view(filename: str, full: bool = False):
     try:
-        image = database.session().query(database.Image).filter_by(filename=filename).one()
+        image = session().query(Image).filter_by(filename=filename).one()
         return send_file(os.path.join(settings['upload_directory'], image.filename + ('.thumb' if not full else '.marked')),
                          mimetype='image/jpeg')
     except Exception as e:
@@ -217,7 +219,7 @@ def image_edit(filename: str = None):
     if not filename:
         filename = secure_filename(request.json.get('filename'))
     try:
-        image = database.session().query(database.Image).filter_by(filename=filename).one()
+        image = session().query(Image).filter_by(filename=filename).one()
         if request.method == 'POST':
             get = lambda x: request.json.get(x)
 
@@ -230,35 +232,35 @@ def image_edit(filename: str = None):
                 tag_list = []
                 for tag in get('tags'):
                     tag_name = tag.lower()
-                    db_tag = database.session().query(database.Tag).filter_by(name=tag_name).first()
+                    db_tag = session().query(Tag).filter_by(name=tag_name).first()
                     if db_tag:
                         tag_list.append(db_tag)
                     else:
-                        db_tag = database.Tag(name=tag_name)
-                        database.session().add(db_tag)
-                        tag_list.append(database.session().query(database.Tag).filter_by(name=tag_name).one())
+                        db_tag = Tag(name=tag_name)
+                        session().add(db_tag)
+                        tag_list.append(session().query(Tag).filter_by(name=tag_name).one())
 
                 image.tags = tag_list
 
             if get('location'):
                 location_name = get('location').title()
-                db_location = database.session().query(database.Location).filter_by(name=location_name).first()
+                db_location = session().query(Location).filter_by(name=location_name).first()
                 if db_location:
                     image.location = db_location
                 else:
-                    db_location = database.Location(name=location_name)
-                    database.session().add(db_location)
-                    image.location = database.session().query(database.Location).filter_by(name=location_name).one()
+                    db_location = Location(name=location_name)
+                    session().add(db_location)
+                    image.location = session().query(Location).filter_by(name=location_name).one()
 
-            database.session().commit()
+            session().commit()
 
             flash("Image succesfully uploaded", category='success')
             # return redirect(url_for('index'))
             return jsonify({'msg': 'Success'})
         else:
-            tags = [*map(lambda t: t.name, database.session().query(database.Tag).all())]
+            tags = [*map(lambda t: t.name, session().query(Tag).all())]
             image_tags = [*map(lambda t: t.name, image.tags)]
-            locations = [*map(lambda l: l.name, database.session().query(database.Location).all())]
+            locations = [*map(lambda l: l.name, session().query(Location).all())]
             return render_template('edit_image.html', image=image, tags=tags, locations=locations,
                                    image_tags=image_tags, title='Edit %s' % image.name)
     except Exception as e:
@@ -311,8 +313,8 @@ def watermark(im, mark, position, opacity: float=1):
 @require_can_upload
 def upload():
     if request.method == 'GET':
-        locations = database.session().query(database.Location).all()
-        tags = database.session().query(database.Tag).all()
+        locations = session().query(Location).all()
+        tags = session().query(Tag).all()
         return render_template('upload.html', locations=[*map(lambda location: location.name, locations)],
                                tags=[*map(lambda tag: tag.name, tags)], title='Upload')
 
@@ -372,20 +374,20 @@ def upload():
                                      response.json()['result']['tags'])][:5]
 
                         for tag in tags:
-                            db_tag = database.session().query(database.Tag).filter_by(name=tag).first()
+                            db_tag = session().query(Tag).filter_by(name=tag).first()
                             if db_tag:
                                 tag_list.append(db_tag)
                             else:
-                                db_tag = database.Tag(name=tag)
-                                database.session().add(db_tag)
-                                tag_list.append(database.session().query(database.Tag).filter_by(name=tag).first())
+                                db_tag = Tag(name=tag)
+                                session().add(db_tag)
+                                tag_list.append(session().query(Tag).filter_by(name=tag).first())
                     else:
                         print("Error occurred while receiving tags")
                         print(response.status_code, response.text)
 
                     friendly_name = get_friendly_name(filename)
 
-                    db_image = database.Image(name=get_friendly_name(friendly_name),
+                    db_image = Image(name=get_friendly_name(friendly_name),
                                               filename=filename,
                                               width=width, height=height,
                                               tags=tag_list)
@@ -411,8 +413,8 @@ def upload():
                             db_image.taken_time = datetime.strptime(get_exif_key('DateTimeOriginal'),
                                                                     '%Y:%m:%d %H:%M:%S')
 
-                    database.session().add(db_image)
-                    database.session().commit()
+                    session().add(db_image)
+                    session().commit()
                     # os.remove(filepath)
                 except Exception as e:
                     traceback.print_exc()
@@ -426,7 +428,7 @@ def upload():
 
     elif request.method == 'DELETE':
         print(request.form, request.headers)
-        return make_.response("Files deleted", 501)  # TODO: Add delete method
+        return make_response("Files deleted", 501)  # TODO: Add delete method
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -474,9 +476,9 @@ def sign_up():
     remember = request.form.get('remember') is not None
 
     # noinspection PyArgumentList
-    user = database.User(username=username, password=generate_password_hash(password))
-    database.session().add(user)
-    database.session().commit()
+    user = User(username=username, password=generate_password_hash(password))
+    session().add(user)
+    session().commit()
 
     user = get_user(username)
     login_user(user, remember)
