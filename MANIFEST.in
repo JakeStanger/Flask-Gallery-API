@@ -1,0 +1,2 @@
+graft flask_gallery_api/database
+graft flask_gallery_api/res
