@@ -14,6 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename, redirect
 from PIL import Image, ExifTags, ImageEnhance
 from datetime import datetime
+import json
 import requests
 
 # Module resolution is weird depending on how program starts
@@ -22,12 +23,14 @@ try:
 except ModuleNotFoundError:
     from database import *
 
-# with open('server_settings.json', 'r') as f:
-#     settings = json.loads(f.read())
-
-settings: dict
+with open('server_settings.json', 'r') as f:
+    settings = json.loads(f.read())
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = settings['database_uri']
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config.update(SECRET_KEY=settings['secret_key'])
+app.config['JWT_SECRET_KEY'] = settings['secret_key']
 
 CORS(app)
 
@@ -503,28 +506,10 @@ def refresh():
     return jsonify(ret), 200
 
 
-def run(config):
-    global settings
-    settings = config
-
-    app.config['SQLALCHEMY_DATABASE_URI'] = settings['database_uri']
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config.update(SECRET_KEY=settings['secret_key'])
-    app.config['JWT_SECRET_KEY'] = settings['secret_key']
-
+def run():
     app.run()
 
 
 if __name__ == '__main__':
-    import argparse
-    import json
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config')
-    args = parser.parse_args()
-
-    with open(args.config, 'r') as f:
-        config = f.read()
-
-    run(json.loads(config))
+    app.run()
 
