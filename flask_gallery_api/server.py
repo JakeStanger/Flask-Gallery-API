@@ -4,6 +4,7 @@ import traceback
 from fractions import Fraction
 from functools import wraps
 
+import pkg_resources
 from flask import Flask, render_template, request, send_file, make_response, jsonify, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
 from flask_cors import CORS
@@ -357,7 +358,7 @@ def upload():
                     thumb.save(filepath + ".thumb", "JPEG")
 
                     # Save watermarked version
-                    mark = PIL.Image.open('server/res/overlay.png')
+                    mark = PIL.Image.open(pkg_resources.resource_filename('flask_gallery_api', 'res/overlay.png'))
                     watermark(pil_img, mark, 'tile', 0.1).save(filepath + ".marked", "JPEG")
 
                     # Get image_view tags
