@@ -12,7 +12,8 @@ from flask_jwt_extended import JWTManager, jwt_required, create_access_token, ge
 from werkzeug.datastructures import FileStorage
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename, redirect
-from PIL import Image, ExifTags, ImageEnhance
+from PIL import ExifTags, ImageEnhance
+import PIL.Image
 from datetime import datetime
 import json
 import requests
@@ -294,7 +295,7 @@ def watermark(im, mark, position, opacity: float=1):
         im = im.convert('RGBA')
     # create a transparent layer the size of the image and draw the
     # watermark in that layer.
-    layer = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    layer = PIL.Image.new('RGBA', im.size, (0, 0, 0, 0))
     if position == 'tile':
         for y in range(0, im.size[1], mark.size[1]):
             for x in range(0, im.size[0], mark.size[0]):
@@ -310,7 +311,7 @@ def watermark(im, mark, position, opacity: float=1):
     else:
         layer.paste(mark, position)
     # composite the watermark with the layer
-    return Image.composite(layer, im, layer).convert("RGB")
+    return PIL.Image.composite(layer, im, layer).convert("RGB")
 
 
 @app.route('/upload', methods=['GET', 'POST', 'DELETE'])
@@ -332,7 +333,7 @@ def upload():
                 try:
                     file.save(filepath)
 
-                    pil_img = Image.open(filepath)
+                    pil_img = PIL.Image.open(filepath)
 
                     width, height = pil_img.size
 
@@ -352,11 +353,11 @@ def upload():
 
                     # Save thumbnail
                     thumb = pil_img.copy()
-                    thumb.thumbnail((360, 10000), Image.ANTIALIAS)
+                    thumb.thumbnail((360, 10000), PIL.Image.ANTIALIAS)
                     thumb.save(filepath + ".thumb", "JPEG")
 
                     # Save watermarked version
-                    mark = Image.open('server/res/overlay.png')
+                    mark = PIL.Image.open('server/res/overlay.png')
                     watermark(pil_img, mark, 'tile', 0.1).save(filepath + ".marked", "JPEG")
 
                     # Get image_view tags
@@ -475,8 +476,9 @@ def login():
 
 @app.route('/signup', methods=['POST'])
 def sign_up():
-    username = request.form['username'].lower()
-    password = request.form['password']
+    data = request.form or request.json
+    username = data.get('username').lower()
+    password = data.get('password')
     remember = request.form.get('remember') is not None
 
     # noinspection PyArgumentList
