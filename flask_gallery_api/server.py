@@ -164,7 +164,7 @@ def images():
         "filename": im.filename,
         "tags": [*map(lambda t: t.name, im.tags)],
         "location": im.location.name if im.location else None,
-        "taken_time": im.taken_time,
+        "taken_time": im.taken_time.isoformat(),
         "width": im.width,
         "height": im.height
     } for im in images if not im.deleted])
@@ -197,7 +197,7 @@ def image(filename: str):
             "filename": im.filename,
             "tags": [*map(lambda t: t.name, im.tags)],
             "location": im.location.name if im.location else None,
-            "taken_time": im.taken_time,
+            "taken_time": im.taken_time.isoformat(),
             "width": im.width,
             "height": im.height,
             "exposure": to_fraction(im.exposure),
