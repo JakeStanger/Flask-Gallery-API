@@ -41,6 +41,8 @@ class Image(db.Model):
 
     taken_time = db.Column(db.DateTime)  # DateTimeOriginal
 
+    deleted = db.Column(db.Boolean)
+
     location_key = db.Column(db.Integer, db.ForeignKey('locations.id'))
 
     location = db.relationship('Location', back_populates='images')

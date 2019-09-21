@@ -158,7 +158,7 @@ def images():
 
     images = base_query.all()
 
-    return jsonify([*map(lambda im: {
+    return jsonify([{
         "name": im.name,
         "description": im.description,
         "filename": im.filename,
@@ -167,19 +167,23 @@ def images():
         "taken_time": im.taken_time,
         "width": im.width,
         "height": im.height
-    }, images)])
+    } for im in images if not im.deleted])
 
 
 @app.route('/tag', methods=['GET'])
 def tags():
     tags = session().query(Tag).all()
-    return jsonify(*map(lambda t: t.name, [*filter(lambda t: len(t.images) > 0, tags)]))
+    if len(tags):
+        return jsonify([t.name for t in tags if len(t.images) > 0])
+    return jsonify([])
 
 
 @app.route('/location', methods=['GET'])
 def locations():
     locations = session().query(Location).all()
-    return jsonify(*map(lambda l: l.name, locations))
+    if len(locations):
+        return jsonify([l.name for l in locations])
+    return jsonify([])
 
 
 @app.route('/image/<string:filename>/info', methods=['GET'])
@@ -211,8 +215,9 @@ def image(filename: str):
 def image_view(filename: str, full: bool = False):
     try:
         image = session().query(Image).filter_by(filename=filename).one()
-        return send_file(os.path.join(settings['upload_directory'], image.filename + ('.thumb' if not full else '.marked')),
-                         mimetype='image/jpeg')
+        return send_file(
+            os.path.join(settings['upload_directory'], image.filename + ('.thumb' if not full else '.marked')),
+            mimetype='image/jpeg')
     except Exception as e:
         traceback.print_exc()
         return make_response("404", 404)
@@ -258,6 +263,9 @@ def image_edit(filename: str = None):
                     session().add(db_location)
                     image.location = session().query(Location).filter_by(name=location_name).one()
 
+            if get('deleted'):
+                image.deleted = True
+
             session().commit()
 
             flash("Image succesfully uploaded", category='success')
@@ -288,7 +296,7 @@ def reduce_opacity(im, opacity):
     return im
 
 
-def watermark(im, mark, position, opacity: float=1):
+def watermark(im, mark, position, opacity: float = 1):
     """Adds a watermark to an image."""
     if opacity < 1:
         mark = reduce_opacity(mark, opacity)
@@ -394,9 +402,9 @@ def upload():
                     friendly_name = get_friendly_name(filename)
 
                     db_image = Image(name=get_friendly_name(friendly_name),
-                                              filename=filename,
-                                              width=width, height=height,
-                                              tags=tag_list)
+                                     filename=filename,
+                                     width=width, height=height,
+                                     tags=tag_list)
 
                     def get_exif_key(keyname: str, div: bool = False):
                         if keyname in exif:
@@ -515,4 +523,3 @@ def run():
 
 if __name__ == '__main__':
     app.run()
-
