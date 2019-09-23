@@ -7,7 +7,7 @@ from functools import wraps
 import pkg_resources
 from flask import Flask, render_template, request, send_file, make_response, jsonify, url_for, flash
 from flask_login import LoginManager, login_required, login_user, logout_user
-from flask_cors import CORS
+# from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, create_refresh_token, \
     jwt_refresh_token_required
 from werkzeug.datastructures import FileStorage
@@ -34,7 +34,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config.update(SECRET_KEY=settings['secret_key'])
 app.config['JWT_SECRET_KEY'] = settings['secret_key']
 
-CORS(app)
+# CORS(app)
 
 jwt = JWTManager(app)
 
